@@ -1,0 +1,108 @@
+name: Build NSSM
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.configuration }}|${{ matrix.platform }})
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        configuration: [Release, Debug]
+        platform: [Win32, x64, ARM64]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        run: >
+          msbuild nssm.sln
+          /p:Configuration=${{ matrix.configuration }}
+          /p:Platform=${{ matrix.platform }}
+          /m
+
+      - name: Determine arch name
+        if: matrix.configuration == 'Release'
+        id: arch
+        shell: pwsh
+        run: |
+          $map = @{ "Win32" = "ia32"; "x64" = "x64"; "ARM64" = "arm64" }
+          $arch = $map["${{ matrix.platform }}"]
+          "arch=$arch" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Rename artifacts
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem -Path "out/${{ matrix.configuration }}" -Recurse -Include *.exe,*.pdb | ForEach-Object {
+            $dest = "dist/nssm_${{ steps.arch.outputs.arch }}$($_.Extension)"
+            Copy-Item $_.FullName -Destination $dest
+          }
+
+      - name: Upload artifact
+        if: matrix.configuration == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nssm-${{ matrix.platform }}-${{ matrix.configuration }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/latest') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/latest')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine next version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest_tag=$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+
+          if [ -z "$latest_tag" ]; then
+            echo "No previous release found, starting at v0.1.0"
+            new_version="v0.1.0"
+          else
+            version="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$version"
+            patch=$((patch + 1))
+            new_version="v${major}.${minor}.${patch}"
+          fi
+
+          echo "Previous: ${latest_tag:-none} -> New: ${new_version}"
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.new_version }}
+          target_commitish: ${{ github.sha }}
+          files: artifacts/**/*
+          generate_release_notes: true
