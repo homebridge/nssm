@@ -318,11 +318,12 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       return 2;
     }
 
-    inherit_handles = true;
+    inherit_handles = true;
+
   }
 
   /* stdout */
-  if (service->stdout_path[0]) {
+    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stdout_copy_and_truncate);
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (stdout_handle == INVALID_HANDLE_VALUE) return 4;
@@ -345,7 +346,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
     if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) close_handle(&service->stdout_thread);
 
-    inherit_handles = true;
+    inherit_handles = true;
+
   }
 
   /* stderr */
@@ -385,7 +387,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
     if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) close_handle(&service->stderr_thread);
 
-    inherit_handles = true;
+    inherit_handles = true;
+
   }
 
   /*
