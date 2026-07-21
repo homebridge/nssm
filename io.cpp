@@ -605,15 +605,18 @@ static int write_with_timestamp(logger_t *logger, void *address, unsigned long b
 
 /* Wrapper to be called in a new thread for logging. */
 unsigned long WINAPI log_and_rotate(void *arg) {
-  __int64 size = 0;
+  __int64 size = 0;
+
   if (! logger) return 1;
 
   __int64 size;
-  if (GetFileInformationByHandle(logger->write_handle, &info)) {
+  if (GetFileInformationByHandle(logger->write_handle, &info)) {
+
   /* Find initial file size. */
   if (! GetFileInformationByHandle(logger->write_handle, &info)) logger->size = 0LL;
   else {
-    size = (__int64) l.QuadPart;
+    size = (__int64) l.QuadPart;
+
     l.HighPart = info.nFileSizeHigh;
     l.LowPart = info.nFileSizeLow;
     size = l.QuadPart;
@@ -719,6 +722,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
       }
     }
 
+      out = 0;
     if (! size || logger->timestamp_log) if (! charsize) charsize = guess_charsize(address, in);
     if (! size) {
       /* Write a BOM to the new file. */
@@ -726,6 +730,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
       size += (__int64) out;
     }
 
+    out = 0;
     /* Write the data, if any. */
     if (! in) continue;
 
