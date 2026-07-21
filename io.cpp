@@ -318,13 +318,11 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       return 2;
     }
 
-    inherit_handles = true;
-
+    inherit_handles = true;
   }
 
   /* stdout */
-    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stdout_copy_and_truncate);
-
+  if (service->stdout_path[0]) {
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (stdout_handle == INVALID_HANDLE_VALUE) return 4;
@@ -347,8 +345,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
     if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) close_handle(&service->stdout_thread);
 
-    inherit_handles = true;
-
+    inherit_handles = true;
   }
 
   /* stderr */
@@ -364,8 +361,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       /* XXX: Here we assume that either both or neither handle must be a pipe. */
       if (dup_handle(service->stdout_si, &service->stderr_si, _T("stdout"), _T("stderr"))) return 6;
     }
-      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stderr_copy_and_truncate);
-
+    else {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (stderr_handle == INVALID_HANDLE_VALUE) return 7;
@@ -389,8 +385,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
     if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) close_handle(&service->stderr_thread);
 
-    inherit_handles = true;
-
+    inherit_handles = true;
   }
 
   /*
@@ -548,21 +543,17 @@ static inline int write_timestamp(logger_t *logger, unsigned long charsize, unsi
 
   wchar_t *utf16;
   unsigned long utf16len;
-  int ret = try_write(logger, (void *) utf16, utf16len * sizeof(wchar_t), out, complained);
-
+  if (to_utf16(timestamp, &utf16, &utf16len)) return -1;
   int ret = try_write(logger, (void *) *utf16, utf16len * sizeof(wchar_t), out, complained);
   HeapFree(GetProcessHeap(), 0, utf16);
   return ret;
 }
 
 static int write_with_timestamp(logger_t *logger, void *address, unsigned long bufsize, unsigned long *out, int *complained, unsigned long charsize) {
-    unsigned long log_out = 0;
-
-    int log_complained = 0;
-
+  if (logger->timestamp_log) {
+    unsigned long log_out;
     int log_complained;
-    int timestamp_complained = 0;
-
+    unsigned long timestamp_out = 0;
     int timestamp_complained;
     if (! logger->line_length) {
       write_timestamp(logger, charsize, &timestamp_out, &timestamp_complained);
@@ -605,18 +596,16 @@ static int write_with_timestamp(logger_t *logger, void *address, unsigned long b
 
 /* Wrapper to be called in a new thread for logging. */
 unsigned long WINAPI log_and_rotate(void *arg) {
-  __int64 size = 0;
-
+  logger_t *logger = (logger_t *) arg;
   if (! logger) return 1;
 
   __int64 size;
-  if (GetFileInformationByHandle(logger->write_handle, &info)) {
+  BY_HANDLE_FILE_INFORMATION info;
 
   /* Find initial file size. */
   if (! GetFileInformationByHandle(logger->write_handle, &info)) logger->size = 0LL;
   else {
-    size = (__int64) l.QuadPart;
-
+    ULARGE_INTEGER l;
     l.HighPart = info.nFileSizeHigh;
     l.LowPart = info.nFileSizeLow;
     size = l.QuadPart;
@@ -722,7 +711,6 @@ unsigned long WINAPI log_and_rotate(void *arg) {
       }
     }
 
-      out = 0;
     if (! size || logger->timestamp_log) if (! charsize) charsize = guess_charsize(address, in);
     if (! size) {
       /* Write a BOM to the new file. */
@@ -730,7 +718,6 @@ unsigned long WINAPI log_and_rotate(void *arg) {
       size += (__int64) out;
     }
 
-    out = 0;
     /* Write the data, if any. */
     if (! in) continue;
 

@@ -185,12 +185,7 @@ void check_admin() {
   PSID AdministratorsGroup;
   SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
   if (! AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &AdministratorsGroup)) return;
-  BOOL admin = FALSE;
-
-  CheckTokenMembership(NULL, AdministratorsGroup, &admin);
-
-  is_admin = (admin != FALSE);
-
+  CheckTokenMembership(0, AdministratorsGroup, /*XXX*/(PBOOL) &is_admin);
   FreeSid(AdministratorsGroup);
 }
 
@@ -223,14 +218,10 @@ static int elevate(int argc, TCHAR **argv, unsigned long message) {
 
   HeapFree(GetProcessHeap(), 0, (void *) args);
   return exitcode;
-  DWORD_PTR affinity = 0, system_affinity = 0;
+}
 
-
-  int count = 0;
-  for (DWORD_PTR i = 0; i < sizeof(DWORD_PTR) * 8; i++) {
-    if (system_affinity & ((DWORD_PTR) 1 << i)) count++;
-  }
-  return count;
+int num_cpus() {
+  DWORD_PTR i, affinity, system_affinity;
   if (! GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) return 64;
   for (i = 0; system_affinity & (1LL << i); i++) if (i == 64) break;
   return (int) i;
