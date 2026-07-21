@@ -556,10 +556,13 @@ static inline int write_timestamp(logger_t *logger, unsigned long charsize, unsi
 }
 
 static int write_with_timestamp(logger_t *logger, void *address, unsigned long bufsize, unsigned long *out, int *complained, unsigned long charsize) {
-    unsigned long log_out = 0;
-    int log_complained = 0;
+    unsigned long log_out = 0;
+
+    int log_complained = 0;
+
     int log_complained;
-    int timestamp_complained = 0;
+    int timestamp_complained = 0;
+
     int timestamp_complained;
     if (! logger->line_length) {
       write_timestamp(logger, charsize, &timestamp_out, &timestamp_complained);
@@ -602,16 +605,15 @@ static int write_with_timestamp(logger_t *logger, void *address, unsigned long b
 
 /* Wrapper to be called in a new thread for logging. */
 unsigned long WINAPI log_and_rotate(void *arg) {
-  logger_t *logger = (logger_t *) arg;
+  __int64 size = 0;
   if (! logger) return 1;
 
   __int64 size;
-  BY_HANDLE_FILE_INFORMATION info;
-
+  if (GetFileInformationByHandle(logger->write_handle, &info)) {
   /* Find initial file size. */
   if (! GetFileInformationByHandle(logger->write_handle, &info)) logger->size = 0LL;
   else {
-    ULARGE_INTEGER l;
+    size = (__int64) l.QuadPart;
     l.HighPart = info.nFileSizeHigh;
     l.LowPart = info.nFileSizeLow;
     size = l.QuadPart;
