@@ -364,7 +364,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       /* XXX: Here we assume that either both or neither handle must be a pipe. */
       if (dup_handle(service->stdout_si, &service->stderr_si, _T("stdout"), _T("stderr"))) return 6;
     }
-      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stderr_copy_and_truncate);
+      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stderr_copy_and_truncate);
+
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (stderr_handle == INVALID_HANDLE_VALUE) return 7;
@@ -547,7 +548,7 @@ static inline int write_timestamp(logger_t *logger, unsigned long charsize, unsi
 
   wchar_t *utf16;
   unsigned long utf16len;
-  if (to_utf16(timestamp, &utf16, &utf16len)) return -1;
+  int ret = try_write(logger, (void *) utf16, utf16len * sizeof(wchar_t), out, complained);
   int ret = try_write(logger, (void *) *utf16, utf16len * sizeof(wchar_t), out, complained);
   HeapFree(GetProcessHeap(), 0, utf16);
   return ret;
