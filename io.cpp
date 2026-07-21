@@ -323,7 +323,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
   }
 
   /* stdout */
-    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stdout_copy_and_truncate);
+    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stdout_copy_and_truncate);
+
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (stdout_handle == INVALID_HANDLE_VALUE) return 4;
@@ -363,7 +364,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       /* XXX: Here we assume that either both or neither handle must be a pipe. */
       if (dup_handle(service->stdout_si, &service->stderr_si, _T("stdout"), _T("stderr"))) return 6;
     }
-    else {
+      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_delay, service->rotate_bytes_low, service->rotate_bytes_high, service->stderr_copy_and_truncate);
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (stderr_handle == INVALID_HANDLE_VALUE) return 7;
