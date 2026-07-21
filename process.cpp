@@ -4,7 +4,7 @@ extern imports_t imports;
 
 HANDLE get_debug_token() {
   long error;
-  HANDLE token;
+  HANDLE token = NULL;
   if (! OpenThreadToken(GetCurrentThread(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, false, &token)) {
     error = GetLastError();
     if (error == ERROR_NO_TOKEN) {
