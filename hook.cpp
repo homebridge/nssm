@@ -360,7 +360,8 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
     hook->name = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, HOOK_NAME_LENGTH * sizeof(TCHAR));
     if (hook->name) _sntprintf_s(hook->name, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s (%s/%s)"), service->name, hook_event, hook_action);
     hook->process_handle = pi.hProcess;
-    CloseHandle(pi.hThread);
+    CloseHandle(pi.hThread);
+
     hook->pid = pi.dwProcessId;
     hook->deadline = deadline;
     if (get_process_creation_time(hook->process_handle, &hook->creation_time)) GetSystemTimeAsFileTime(&hook->creation_time);
@@ -382,9 +383,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
       }
     }
     else {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETHREAD_FAILED, error_string(GetLastError()), 0);
-      await_hook(hook);
-      if (hook->name) HeapFree(GetProcessHeap(), 0, hook->name);
+      ret = (int) await_hook(hook);
       HeapFree(GetProcessHeap(), 0, hook);
     }
   }
