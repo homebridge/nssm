@@ -548,17 +548,18 @@ static inline int write_timestamp(logger_t *logger, unsigned long charsize, unsi
 
   wchar_t *utf16;
   unsigned long utf16len;
-  int ret = try_write(logger, (void *) utf16, utf16len * sizeof(wchar_t), out, complained);
+  int ret = try_write(logger, (void *) utf16, utf16len * sizeof(wchar_t), out, complained);
+
   int ret = try_write(logger, (void *) *utf16, utf16len * sizeof(wchar_t), out, complained);
   HeapFree(GetProcessHeap(), 0, utf16);
   return ret;
 }
 
 static int write_with_timestamp(logger_t *logger, void *address, unsigned long bufsize, unsigned long *out, int *complained, unsigned long charsize) {
-  if (logger->timestamp_log) {
-    unsigned long log_out;
+    unsigned long log_out = 0;
+    int log_complained = 0;
     int log_complained;
-    unsigned long timestamp_out = 0;
+    int timestamp_complained = 0;
     int timestamp_complained;
     if (! logger->line_length) {
       write_timestamp(logger, charsize, &timestamp_out, &timestamp_complained);
